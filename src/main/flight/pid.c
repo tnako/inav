@@ -423,7 +423,6 @@ static void pidApplySetpointRateLimiting(pidState_t *pidState, flight_dynamics_i
     }
 }
 
-#ifdef USE_SERVOS
 static void pidApplyFixedWingRateController(pidState_t *pidState, flight_dynamics_index_t axis)
 {
     const float rateError = pidState->rateTarget - pidState->gyroRate;
@@ -465,7 +464,6 @@ static void pidApplyFixedWingRateController(pidState_t *pidState, flight_dynamic
     axisPID_Setpoint[axis] = pidState->rateTarget;
 #endif
 }
-#endif
 
 static void pidApplyMulticopterRateController(pidState_t *pidState, flight_dynamics_index_t axis)
 {
@@ -741,15 +739,11 @@ void pidController(void)
     // Step 4: Run gyro-driven control
     for (int axis = 0; axis < 3; axis++) {
         // Apply PID setpoint controller
-#ifdef USE_SERVOS
         if (STATE(FIXED_WING)) {
             pidApplyFixedWingRateController(&pidState[axis], axis);
         }
         else {
             pidApplyMulticopterRateController(&pidState[axis], axis);
         }
-#else
-        pidApplyMulticopterRateController(&pidState[axis], axis);
-#endif
     }
 }
