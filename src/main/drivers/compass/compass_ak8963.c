@@ -23,7 +23,7 @@
 
 #include "platform.h"
 
-#ifdef USE_MAG_AK8963
+#if defined(USE_MAG_AK8963) || defined(USE_MAG_MPU9250)
 
 #include "build/debug.h"
 

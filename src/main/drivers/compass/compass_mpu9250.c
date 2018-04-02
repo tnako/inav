@@ -39,8 +39,9 @@
 
 #include "drivers/compass/compass.h"
 #include "drivers/compass/compass_mpu9250.h"
+#include "drivers/compass/compass_ak8963.h"
 
-#if defined(USE_MAG_MPU9250) && defined(USE_GYRO_MPU9250)
+#if defined(USE_MAG_MPU9250)
 
 // No separate hardware descriptor needed. Hardware descriptor initialization is handled by GYRO driver
 
@@ -81,7 +82,11 @@
 #define CNTL_BIT_14_BIT                 0x00
 #define CNTL_BIT_16_BIT                 0x10
 
+#define MPU9250_BIT_RESET               0x80
+
 #define DETECTION_MAX_RETRY_COUNT   5
+
+#if defined(USE_GYRO_MPU9250)
 
 typedef enum {
     CHECK_STATUS = 0,
@@ -281,7 +286,7 @@ static bool mpu9250CompassRead(magDev_t * mag)
     return lastReadResult;
 }
 
-bool mpu9250CompassDetect(magDev_t * mag)
+bool mpu9250CompassDetectSPI(magDev_t * mag)
 {
     // Compass on MPU9250 is only supported if MPU9250 is connected to SPI bus
     // FIXME: We need to use gyro_to_use here, not mag_to_use
@@ -322,6 +327,68 @@ bool mpu9250CompassDetect(magDev_t * mag)
 
     busSetSpeed(mag->busDev, BUS_SPEED_FAST);
     return false;
+}
+#endif
+
+static bool mpu9250Detect(magDev_t * mag)
+{
+  for (int retryCount = 0; retryCount < DETECTION_MAX_RETRY_COUNT; retryCount++) {
+      delay(150);
+      // delay(10);
+
+      uint8_t sig = 0;
+      // check for MPU9250
+      bool ack = busRead(mag->busDev, MPU_RA_WHO_AM_I, &sig);
+
+      if (ack && sig == MPU9250_WHO_AM_I_CONST) {
+          return true;
+      }
+  }
+    return false;
+}
+
+bool mpu9250CompassDetectI2C(magDev_t * mag)
+{
+  mag->busDev = busDeviceInit(BUSTYPE_ANY, DEVHW_MPU9250, mag->magSensorToUse, OWNER_COMPASS);
+  if (mag->busDev == NULL) {
+      return false;
+  }
+
+  // Check if Gyro driver initialized the chip, no reset allowed
+  mpuContextData_t * ctx = busDeviceGetScratchpadMemory(mag->busDev);
+  if (ctx->chipMagicNumber != 0x9250) {
+      busWrite(mag->busDev, MPU_RA_PWR_MGMT_1, MPU9250_BIT_RESET);
+      delay(100);
+  }
+
+  if (!mpu9250Detect(mag)) {
+      busDeviceDeInit(mag->busDev);
+      return false;
+  }
+
+  // Set bypass mode
+  busWrite(mag->busDev, MPU_RA_INT_PIN_CFG, 0x02);
+  delay(100);
+
+  busDeviceDeInit(mag->busDev);
+
+  return ak8963Detect(mag);
+
+}
+
+bool mpu9250CompassDetect(magDev_t * mag)
+{
+  bool detected = false;
+#if defined(USE_GYRO_MPU9250)
+  detected = mpu9250CompassDetectSPI(mag);
+#endif
+
+  // Bypass mode
+  if (!detected) {
+    detected = mpu9250CompassDetectI2C(mag);
+  }
+
+  return detected;
 }
 
 #endif
