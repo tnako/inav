@@ -53,10 +53,13 @@
     #endif
 #endif
 
-#if defined(USE_GYRO_MPU9250)
+#if defined(USE_GYRO_MPU9250) || defined(USE_MAG_MPU9250) || defined(USE_ACC_MPU9250)
     #if defined(MPU9250_SPI_BUS)
     BUSDEV_REGISTER_SPI(busdev_mpu9250,     DEVHW_MPU9250,      MPU9250_SPI_BUS,    MPU9250_CS_PIN,     MPU_INT_EXTI,   DEVFLAGS_NONE);
-    #elif defined(MPU9250_I2C_BUS)
+    #elif defined(MPU9250_I2C_BUS) || defined(MAG_I2C_BUS)
+    #if !defined(MPU9250_I2C_BUS)
+        #define MPU9250_I2C_BUS MAG_I2C_BUS
+    #endif
     BUSDEV_REGISTER_I2C(busdev_mpu9250,     DEVHW_MPU9250,      MPU9250_I2C_BUS,    MPU_ADDRESS,        MPU_INT_EXTI,   DEVFLAGS_NONE);
     #endif
 #endif
